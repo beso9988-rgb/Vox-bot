@@ -2,6 +2,7 @@ import json
 import os
 import re
 import sys
+import time
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -15,12 +16,32 @@ PAGES = {
 TOKEN = os.environ["TOKEN"]
 CHAT_ID = os.environ["CHAT_ID"]
 FILE = "seen.json"
-HEADERS = {"User-Agent": "Mozilla/5.0"}
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9,ar;q=0.8",
+    "Referer": "https://egy.voxcinemas.com/",
+}
+SESSION = requests.Session()
+SESSION.headers.update(HEADERS)
 SKIP = {"whatson", "comingsoon"}
 
 
 def get_movies(url):
-    html = requests.get(url, timeout=20, headers=HEADERS).text
+    html = None
+    for attempt in range(1, 4):
+        try:
+            r = SESSION.get(url, timeout=(15, 45))
+            print("status", r.status_code, "attempt", attempt)
+            if r.status_code == 200:
+                html = r.text
+                break
+        except requests.exceptions.RequestException as e:
+            print("attempt", attempt, "failed:", type(e).__name__)
+        time.sleep(5)
+    if html is None:
+        return {}
     soup = BeautifulSoup(html, "html.parser")
     movies = {}
     for a in soup.find_all("a", href=True):
